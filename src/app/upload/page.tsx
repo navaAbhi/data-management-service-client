@@ -2,6 +2,7 @@
 import { useState } from "react";
 import Navbar from "@/components/navbar";
 import UploadForm from "@/components/uploadForm";
+import axios from "axios";
 
 export default function UploadPage() {
     const [uploadStatus, setUploadStatus] = useState<"idle" | "uploading" | "complete" | "error">("idle");
@@ -10,17 +11,27 @@ export default function UploadPage() {
     const [userEmail, setUserEmail] = useState<string | null>(null);
     const [authenticated, setAuthenticated] = useState<boolean>(false);
 
-    const handleLogin = () => {
-        if (email.trim()) {
-            setUserEmail(email.trim());
-            setEmail("");
-            setAuthenticated(true);
+    const handleLogin = async () => {
+        if (!email.trim()) return;
+        try {
+            const response = await axios.post("http://localhost:8000/login",
+                { email: email.trim() },
+                { withCredentials: true }
+            );
+
+            if (response.status === 200) {
+                setUserEmail(email.trim());
+                setEmail("");
+                setAuthenticated(true);
+            }
+        } catch (err) {
+            console.error("Login failed:", err);
         }
     };
 
     return (
         <div className="min-h-screen bg-gray-50 text-black">
-            <Navbar authenticated={authenticated} />
+            <Navbar authenticated={authenticated} setAuthenticated={setAuthenticated} />
             <main className="p-6 max-w-4xl mx-auto">
                 {!userEmail && (
                     <div className="mb-6 bg-white p-6 rounded shadow-md border">
