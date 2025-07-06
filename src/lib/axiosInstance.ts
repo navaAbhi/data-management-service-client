@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const axiosInstance = axios.create({
-    baseURL: "http://localhost:8000",
+    baseURL: process.env.NEXT_PUBLIC_BACKEND_API,
     withCredentials: true,
 });
 
@@ -9,7 +9,7 @@ axiosInstance.interceptors.request.use(
     async (config) => {
         try {
             await axios.post("/verify-token", {}, {
-                baseURL: "http://localhost:8000",
+                baseURL: process.env.NEXT_PUBLIC_BACKEND_API,
                 withCredentials: true
             });
         } catch (error) {

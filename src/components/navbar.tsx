@@ -3,7 +3,7 @@ import axiosInstance from "@/lib/axiosInstance";
 export default function Navbar({ authenticated, setAuthenticated }: { authenticated: boolean, setAuthenticated: React.Dispatch<React.SetStateAction<boolean>> }) {
     const handleLogout = async () => {
         try {
-            const response = await axiosInstance.post("http://localhost:8000/logout",
+            const response = await axiosInstance.post(`${process.env.NEXT_PUBLIC_BACKEND_API}/logout`,
                 { withCredentials: true }
             );
 

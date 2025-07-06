@@ -1,6 +1,6 @@
 "use client";
 import { ChangeEvent, FormEvent, useState } from "react";
-import axios from "axios";
+import axiosInstance from "@/lib/axiosInstance";
 
 type Props = {
     setUploadStatus: (status: "idle" | "uploading" | "complete" | "error") => void;
@@ -14,39 +14,68 @@ export default function UploadForm({ setUploadStatus, setStatusText }: Props) {
 
     const handleLocalUpload = async () => {
         try {
+            if (!file) return;
+
             setUploadStatus("uploading");
-            setStatusText("Getting pre-signed URL...");
+            setStatusText("Requesting pre-signed URL from server...");
 
-            const presignRes = await axios.post("/api/import/local/presigned-url", {
-                filename: file?.name,
-            });
+            const presignResult = await axiosInstance.post(
+                `${process.env.NEXT_PUBLIC_BACKEND_API}/import/local/presigned-url`,
+                {
+                    filename: file.name,
+                    content_type: file.type,
+                    size: file.size
+                },
+            );
 
-            const { url, fields, job_id } = presignRes.data;
+            setStatusText("Uploading file directly to S3...");
+
+            const { presigned } = presignResult.data;
+            const { presigned_post, s3_key } = presigned;
+            const { url, fields } = presigned_post;
+
+            if (!url || !fields) {
+                throw new Error("Invalid presigned response shape from backend");
+            }
 
             const formData = new FormData();
-            Object.entries(fields).forEach(([key, value]) => formData.append(key, value as string));
-            if (file) formData.append("file", file);
+            Object.entries(fields).forEach(([key, value]) =>
+                formData.append(key, String(value))
+            );
+            formData.append("file", file);
 
-            await axios.post(url, formData, {
-                headers: { "Content-Type": "multipart/form-data" },
+            await axiosInstance.post(url, formData, {
+                headers: { "Content-Type": "multipart/form-data" }
             });
 
-            await axios.post("/api/import/local/complete", { job_id });
+            setStatusText("Notifying server of completed upload...");
 
-            // Poll status
-            const poll = setInterval(async () => {
-                const statusRes = await axios.get(`/api/import/${job_id}`);
-                if (statusRes.data.status === "complete") {
-                    clearInterval(poll);
-                    setUploadStatus("complete");
-                } else if (statusRes.data.status === "error") {
-                    clearInterval(poll);
-                    setUploadStatus("error");
-                    setStatusText("Upload failed.");
-                } else {
-                    setStatusText(`Progress: ${statusRes.data.progress}%`);
-                }
-            }, 2000);
+            await axiosInstance.post(
+                `${process.env.NEXT_PUBLIC_BACKEND_API}/import/local/complete`,
+                {
+                    s3_key,
+                    original_filename: file.name,
+                    size: file.size
+                },
+            );
+
+            setStatusText("File upload complete. Server is processing your data...");
+
+            // const job_id = 1;
+
+            // const poll = setInterval(async () => {
+            //     const statusRes = await axiosInstance.get(`/api/import/${job_id}`);
+            //     if (statusRes.data.status === "complete") {
+            //         clearInterval(poll);
+            //         setUploadStatus("complete");
+            //     } else if (statusRes.data.status === "error") {
+            //         clearInterval(poll);
+            //         setUploadStatus("error");
+            //         setStatusText("Upload failed.");
+            //     } else {
+            //         setStatusText(`Progress: ${statusRes.data.progress}%`);
+            //     }
+            // }, 2000);
         } catch (err) {
             console.error(err);
             setUploadStatus("error");
@@ -57,12 +86,12 @@ export default function UploadForm({ setUploadStatus, setStatusText }: Props) {
     const handleS3LinkUpload = async () => {
         try {
             setUploadStatus("uploading");
-            const res = await axios.post("/api/import/s3", { url: s3Link });
+            const res = await axiosInstance.post("/api/import/s3", { url: s3Link });
             const job_id = res.data.job_id;
 
             // Poll status
             const poll = setInterval(async () => {
-                const statusRes = await axios.get(`/api/import/${job_id}`);
+                const statusRes = await axiosInstance.get(`/api/import/${job_id}`);
                 if (statusRes.data.status === "complete") {
                     clearInterval(poll);
                     setUploadStatus("complete");

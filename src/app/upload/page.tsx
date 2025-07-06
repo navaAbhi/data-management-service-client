@@ -11,10 +11,11 @@ export default function UploadPage() {
     const [userEmail, setUserEmail] = useState<string | null>(null);
     const [authenticated, setAuthenticated] = useState<boolean>(false);
 
-    const handleLogin = async () => {
+    const handleLogin = async (e: React.FormEvent) => {
+        e.preventDefault();
         if (!email.trim()) return;
         try {
-            const response = await axios.post("http://localhost:8000/login",
+            const response = await axios.post(`${process.env.NEXT_PUBLIC_BACKEND_API}/login`,
                 { email: email.trim() },
                 { withCredentials: true }
             );
@@ -36,7 +37,9 @@ export default function UploadPage() {
                 {!userEmail && (
                     <div className="mb-6 bg-white p-6 rounded shadow-md border">
                         <h2 className="text-xl font-semibold mb-2">Login / Signup</h2>
-                        <div className="flex gap-2">
+                        <form
+                            onSubmit={handleLogin}
+                            className="flex gap-2">
                             <input
                                 type="email"
                                 value={email}
@@ -45,12 +48,12 @@ export default function UploadPage() {
                                 className="border border-gray-300 rounded p-2 flex-1"
                             />
                             <button
-                                onClick={handleLogin}
+                                type="submit"
                                 className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
                             >
                                 Login / Signup
                             </button>
-                        </div>
+                        </form>
                     </div>
                 )}
 
